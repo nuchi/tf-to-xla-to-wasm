@@ -1,6 +1,8 @@
 # Tensorflow to WebAssembly
 
-This is a set of **bare-bones** instructions to compile your Tensorflow model (as a `.pb` file) to WebAssembly. To fill in the blanks in these instructions, you will need to:
+This is a set of **bare-bones** instructions to compile your Tensorflow model (as a `.pb` file) to WebAssembly. You can see a live demo I created of a Tensorflow model running in the browser at <https://humantoanimal.com/>.
+
+To use these bare-bones instructions, you will need to:
 
 1. Already know how to use Tensorflow's `tfcompile` tool to [compile your graph to XLA and from XLA to machine code](https://www.tensorflow.org/performance/xla/tfcompile),
 2. Have a toolchain to compile C++ to WebAssembly, such as [Emscripten](https://kripken.github.io/emscripten-site/).
