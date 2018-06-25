@@ -1,0 +1,187 @@
+diff --git a/tensorflow/compiler/xla/service/cpu/BUILD b/tensorflow/compiler/xla/service/cpu/BUILD
+index b703be0..a09b5cf 100644
+--- a/tensorflow/compiler/xla/service/cpu/BUILD
++++ b/tensorflow/compiler/xla/service/cpu/BUILD
+@@ -149,6 +149,8 @@ cc_library(
+         "@llvm//:object",
+         "@llvm//:support",
+         "@llvm//:target",  # fixdeps: keep
++        "@llvm//:webassembly_code_gen",
++        "@llvm//:webassembly_disassembler",
+         "@llvm//:x86_code_gen",  # fixdeps: keep
+         "@llvm//:x86_disassembler",  # fixdeps: keep
+     ] + select({
+diff --git a/tensorflow/compiler/xla/service/cpu/cpu_compiler.cc b/tensorflow/compiler/xla/service/cpu/cpu_compiler.cc
+index d039132..7047d30 100644
+--- a/tensorflow/compiler/xla/service/cpu/cpu_compiler.cc
++++ b/tensorflow/compiler/xla/service/cpu/cpu_compiler.cc
+@@ -158,6 +158,11 @@ CpuCompiler::CpuCompiler() {
+   LLVMInitializeAArch64TargetMC();
+   LLVMInitializeAArch64AsmPrinter();
+   LLVMInitializeAArch64Disassembler();
++  LLVMInitializeWebAssemblyTarget();
++  LLVMInitializeWebAssemblyTargetInfo();
++  LLVMInitializeWebAssemblyTargetMC();
++  LLVMInitializeWebAssemblyAsmPrinter();
++  LLVMInitializeWebAssemblyDisassembler();
+ }
+ 
+ namespace {
+diff --git a/third_party/llvm/llvm.BUILD b/third_party/llvm/llvm.BUILD
+index e1c22c8..78f38f9 100644
+--- a/third_party/llvm/llvm.BUILD
++++ b/third_party/llvm/llvm.BUILD
+@@ -30,6 +30,7 @@ llvm_targets = [
+     "ARM",
+     "NVPTX",
+     "PowerPC",
++    "WebAssembly",
+     "X86",
+ ]
+ 
+@@ -422,6 +423,20 @@ llvm_target_list = [
+         ],
+     },
+     {
++        "name": "WebAssembly",
++        "lower_name": "webassembly",
++        "short_name": "WebAssembly",
++        "tbl_outs": [
++            ("-gen-asm-writer", "lib/Target/WebAssembly/WebAssemblyGenAsmWriter.inc"),
++            ("-gen-dag-isel", "lib/Target/WebAssembly/WebAssemblyGenDAGISel.inc"),
++            ("-gen-fast-isel", "lib/Target/WebAssembly/WebAssemblyGenFastISel.inc"),
++            ("-gen-instr-info", "lib/Target/WebAssembly/WebAssemblyGenInstrInfo.inc"),
++            ("-gen-emitter", "lib/Target/WebAssembly/WebAssemblyGenMCCodeEmitter.inc"),
++            ("-gen-register-info", "lib/Target/WebAssembly/WebAssemblyGenRegisterInfo.inc"),
++            ("-gen-subtarget", "lib/Target/WebAssembly/WebAssemblyGenSubtargetInfo.inc"),
++        ],
++    },
++    {
+         "name": "X86",
+         "lower_name": "x86",
+         "short_name": "X86",
+@@ -2284,3 +2299,124 @@ cc_library(
+         ":support",
+     ],
+ )
++
++cc_library(
++    name="webassembly_code_gen",
++    srcs = glob([
++        "lib/Target/WebAssembly/*.c",
++        "lib/Target/WebAssembly/*.cpp",
++        "lib/Target/WebAssembly/*.inc",
++    ]),
++    hdrs = glob([
++        "include/llvm/Target/WebAssembly/*.h",
++        "include/llvm/Target/WebAssembly/*.def",
++        "include/llvm/Target/WebAssembly/*.inc",
++        "lib/Target/WebAssembly/*.h",
++    ]),
++    copts = ["-Iexternal/llvm/lib/Target/WebAssembly"],
++    deps = [
++        ":analysis",
++        ":asm_printer",
++        ":code_gen",
++        ":config",
++        ":core",
++        ":mc",
++        ":scalar",
++        ":selection_dag",
++        ":support",
++        ":target",
++        ":transform_utils",
++        ":webassembly_asm_printer",
++        ":webassembly_desc",
++        ":webassembly_info",
++        ":webassembly_target_gen",
++    ],
++)
++
++cc_library(
++    name="webassembly_disassembler",
++    srcs = glob([
++        "lib/Target/WebAssembly/Disassembler/*.c",
++        "lib/Target/WebAssembly/Disassembler/*.cpp",
++        "lib/Target/WebAssembly/Disassembler/*.inc",
++    ]),
++    hdrs = glob([
++        "include/llvm/Target/WebAssembly/Disassembler/*.h",
++        "include/llvm/Target/WebAssembly/Disassembler/*.def",
++        "include/llvm/Target/WebAssembly/Disassembler/*.inc",
++        "lib/Target/WebAssembly/Disassembler/*.h",
++    ]),
++    copts = ["-Iexternal/llvm/lib/Target/WebAssembly"],
++    deps = [
++        ":mc",
++        ":webassembly_info",
++        ":support",
++        ":webassembly_target_gen",
++    ],
++)
++
++cc_library(
++    name="webassembly_info",
++    srcs = glob([
++        "lib/Target/WebAssembly/TargetInfo/*.c",
++        "lib/Target/WebAssembly/TargetInfo/*.cpp",
++        "lib/Target/WebAssembly/TargetInfo/*.inc",
++    ]),
++    hdrs = glob([
++        "include/llvm/Target/WebAssembly/TargetInfo/*.h",
++        "include/llvm/Target/WebAssembly/TargetInfo/*.def",
++        "include/llvm/Target/WebAssembly/TargetInfo/*.inc",
++        "lib/Target/WebAssembly/TargetInfo/*.h",
++    ]),
++    copts = ["-Iexternal/llvm/lib/Target/WebAssembly"],
++    deps = [
++        ":support",
++        ":webassembly_target_gen",
++    ],
++)
++
++cc_library(
++    name="webassembly_asm_printer",
++    srcs = glob([
++        "lib/Target/WebAssembly/InstPrinter/*.c",
++        "lib/Target/WebAssembly/InstPrinter/*.cpp",
++        "lib/Target/WebAssembly/InstPrinter/*.inc",
++    ]),
++    hdrs = glob([
++        "include/llvm/Target/WebAssembly/InstPrinter/*.h",
++        "include/llvm/Target/WebAssembly/InstPrinter/*.def",
++        "include/llvm/Target/WebAssembly/InstPrinter/*.inc",
++        "lib/Target/WebAssembly/InstPrinter/*.h",
++    ]),
++    copts = ["-Iexternal/llvm/lib/Target/WebAssembly"],
++    deps = [
++        ":mc",
++        ":support",
++        ":webassembly_target_gen",
++        ":attributes_gen",
++        ":intrinsics_gen",
++    ],
++)
++
++cc_library(
++    name="webassembly_desc",
++    srcs = glob([
++        "lib/Target/WebAssembly/MCTargetDesc/*.c",
++        "lib/Target/WebAssembly/MCTargetDesc/*.cpp",
++        "lib/Target/WebAssembly/MCTargetDesc/*.inc",
++    ]),
++    hdrs = glob([
++        "include/llvm/Target/WebAssembly/MCTargetDesc/*.h",
++        "include/llvm/Target/WebAssembly/MCTargetDesc/*.def",
++        "include/llvm/Target/WebAssembly/MCTargetDesc/*.inc",
++        "lib/Target/WebAssembly/MCTargetDesc/*.h",
++    ]),
++    copts = ["-Iexternal/llvm/lib/Target/WebAssembly"],
++    deps = [
++        ":mc",
++        ":support",
++        ":webassembly_asm_printer",
++        ":webassembly_info",
++        ":webassembly_target_gen",
++    ],
++)
